@@ -1,0 +1,24 @@
+{
+  "name": "geotagmarathon",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "setup": "cd native && npm i && cd ../server && npm i && cd ../client && npm i && cd .. && clear && clear",
+    "native": "cd native && clear && clear && npm start",
+    "server": "cd server &&  clear && clear && npm run dev",
+    "client": "cd client && clear && clear && npm run dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/prathamguptacode/geotagMarathon.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/prathamguptacode/geotagMarathon/issues"
+  },
+  "homepage": "https://github.com/prathamguptacode/geotagMarathon#readme"
+}
