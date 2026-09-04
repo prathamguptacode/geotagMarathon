@@ -1,10 +1,11 @@
-import { Image, Modal, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native'
+import { Image, Modal, Pressable, Share, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native'
 import { CameraCapturedPicture, CameraType, CameraView, useCameraPermissions } from 'expo-camera'
 import { Dispatch, ReactNode, SetStateAction, useEffect, useRef, useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import AntDesign from '@expo/vector-icons/AntDesign';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
+import axios from 'axios'
 
 const camera = () => {
     const [camPerm, requestCamPerm] = useCameraPermissions()
@@ -181,23 +182,49 @@ type PicturePreviewProps = {
 }
 
 const PicturePreview = ({ picture, setPicture }: PicturePreviewProps) => {
+    const [isFetching, setisFetching] = useState(false)
     const handleClose = () => {
-        //if(isNotUploadingImage) // only if not uploading image, proceed
-
-        setPicture(undefined) //reset pictureUri
+        if (!isFetching) setPicture(undefined)
     }
 
     const handleSave = async () => {
         if (!picture) return
+
         const formData = new FormData()
-        const response = await fetch(picture.uri)
-        const file = await response.blob()
+        const file = {
+            name: 'something',
+            uri: picture.uri,
+            type: `image/${picture.format.slice(1)}`
+        } as unknown as File
+        formData.append('img', file)
 
-        formData.append('file', file)
-        
+        setisFetching(true)
+        try {
+            const response = await axios.post('http://10.81.96.142:8080/', formData, {
+                headers: {
+                    latitude: 18,
+                    longitude: 23
+                }
+            })
 
+            console.info("RESPONSE:", response.data)
+
+        } catch (error) {
+            console.error("AXIOS ERROR:", error)
+        } finally {
+            setisFetching(false)
+        }
     }
 
+    const handleShare = async () => {
+        try {
+            const url = 'https://youtu.be/VdvMZzSWEX0?si=nq9ID3-gNxIKvlWa'
+            await Share.share({ message: url })
+        } catch (error) {
+            console.error("Sharing error:", error)
+        }
+
+    }
 
     return (
         <Modal style={styles.picturePreview} onRequestClose={handleClose} visible={!!picture}>
@@ -212,14 +239,12 @@ const PicturePreview = ({ picture, setPicture }: PicturePreviewProps) => {
                 </View> */}
             </View>
             <View style={styles.previewOptions}>
-                <Pressable onPress={handleClose} style={[styles.previewOption, { backgroundColor: 'white' }]}>
+                <Pressable onPress={handleShare} style={[styles.previewOption, { backgroundColor: 'white' }]}>
                     <MaterialIcons name="camera" size={24} color="black" />
                     <Text style={styles.previewText}>
                         Take Another
                     </Text>
                 </Pressable>
-
-
                 <Pressable onPress={handleSave} style={[styles.previewOption, { backgroundColor: '#0BA3FF' }]}>
                     <MaterialIcons name="save" size={24} color="white" />
                     <Text style={[styles.previewText, { color: 'white' }]}>
