@@ -7,12 +7,13 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
 import axios from 'axios'
 import * as Location from 'expo-location';
-import { Asset, usePermissions as useMediaPermissions } from 'expo-media-library'
+// import { Asset, usePermissions as useMediaPermissions } from 'expo-media-library'
 import { File, Paths } from 'expo-file-system';
+import GeoTagSvg from '@/components/GeoTagSvg';
 
-const camera = () => {
+const CameraScreen = () => {
     const [camPermission, requestCameraPermission] = useCameraPermissions()
-    const [mediaPermission, requestMediaPermission] = useMediaPermissions()
+    // const [mediaPermission, requestMediaPermission] = useMediaPermissions()
     const [capturing, setCapturing] = useState(false)
     const [location, setLocation] = useState<Location.LocationObject>()
 
@@ -30,7 +31,7 @@ const camera = () => {
     useEffect(() => {
         requestCameraPermission()
         requestLocationPermission()
-        requestMediaPermission()
+        // requestMediaPermission()
     }, [])
 
 
@@ -98,7 +99,7 @@ const camera = () => {
     )
 }
 
-export default camera
+export default CameraScreen
 
 const styles = StyleSheet.create({
     container: {
@@ -234,7 +235,7 @@ type PicturePreviewProps = {
 const PicturePreview = ({ picture, setPicture, location }: PicturePreviewProps) => {
     const [isFetching, setisFetching] = useState(false)
     const [address, setAddress] = useState<Location.LocationGeocodedAddress>()
-    const [asset, setAsset] = useState<Asset | null>(null)
+    // const [asset, setAsset] = useState<Asset | null>(null)
 
     const handleClose = () => {
         if (!isFetching) setPicture(undefined)
@@ -262,7 +263,7 @@ const PicturePreview = ({ picture, setPicture, location }: PicturePreviewProps) 
 
             const url = ''
             await handleShare(`${baseURL}/${response.data.data._id}`)
-            await downloadAndSaveAsset(url)
+            // await downloadAndSaveAsset(url)
         } catch (error) {
             console.error("AXIOS ERROR:", error)
         } finally {
@@ -289,20 +290,20 @@ const PicturePreview = ({ picture, setPicture, location }: PicturePreviewProps) 
         return reverseGeoCode
     }
 
-    const downloadFile = async (url: string) => {
-        const destinationFile = new File(Paths.cache, 'test_image.jpg');
-        if (destinationFile.exists) {
-            return destinationFile;
-        } else {
-            return File.downloadFileAsync(url, destinationFile);
-        }
-    }
+    // const downloadFile = async (url: string) => {
+    //     const destinationFile = new File(Paths.cache, 'test_image.jpg');
+    //     if (destinationFile.exists) {
+    //         return destinationFile;
+    //     } else {
+    //         return File.downloadFileAsync(url, destinationFile);
+    //     }
+    // }
 
-    const downloadAndSaveAsset = async (url: string) => {
-        const file = await downloadFile(url);
-        const asset = await Asset.create(file.uri);
-        setAsset(asset);
-    };
+    // const downloadAndSaveAsset = async (url: string) => {
+    //     const file = await downloadFile(url);
+    //     const asset = await Asset.create(file.uri);
+    //     setAsset(asset);
+    // };
 
 
     useEffect(() => {
@@ -319,18 +320,7 @@ const PicturePreview = ({ picture, setPicture, location }: PicturePreviewProps) 
             <View style={styles.previewImageWrapper}>
                 <Image source={{ uri: picture?.uri }} style={{ width: '100%', height: 0, flex: 1 }} />
                 <View style={styles.geoTagOverlay}>
-                    <View style={styles.geoTagContent}>
-                        <Text style={[styles.headingAddress, styles.geoTagText]}>
-                            {`${address?.city}, ${address?.country}`}
-                        </Text>
-                        <Text style={styles.geoTagText} >
-                            {address?.formattedAddress}
-                        </Text>
-                        <Text style={styles.geoTagText}>
-                            {`Latitude: ${location?.coords.latitude} Longitude: ${location?.coords.longitude}`}
-                        </Text>
-                        <Text style={styles.geoTagText}>{new Date(location?.timestamp ?? 0).toLocaleString('en-gb', { dateStyle: 'full' })}</Text>
-                    </View>
+                    <GeoTagSvg address={address} location={location} />
                 </View>
             </View>
             <View style={styles.previewOptions}>
