@@ -7,9 +7,12 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
 import axios from 'axios'
 import * as Location from 'expo-location';
+import { Asset, usePermissions as useMediaPermissions } from 'expo-media-library'
+import { File, Paths } from 'expo-file-system';
 
 const camera = () => {
-    const [camPerm, requestCameraPermission] = useCameraPermissions()
+    const [camPermission, requestCameraPermission] = useCameraPermissions()
+    const [mediaPermission, requestMediaPermission] = useMediaPermissions()
     const [capturing, setCapturing] = useState(false)
     const [location, setLocation] = useState<Location.LocationObject>()
 
@@ -23,9 +26,11 @@ const camera = () => {
         return location
     }
 
+
     useEffect(() => {
         requestCameraPermission()
         requestLocationPermission()
+        requestMediaPermission()
     }, [])
 
 
@@ -64,7 +69,7 @@ const camera = () => {
         setFacing(prev => prev == 'back' ? 'front' : 'back')
     }
 
-    if (!camPerm?.granted) return
+    if (!camPermission?.granted) return
 
     return (
         <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -229,6 +234,7 @@ type PicturePreviewProps = {
 const PicturePreview = ({ picture, setPicture, location }: PicturePreviewProps) => {
     const [isFetching, setisFetching] = useState(false)
     const [address, setAddress] = useState<Location.LocationGeocodedAddress>()
+    const [asset, setAsset] = useState<Asset | null>(null)
 
     const handleClose = () => {
         if (!isFetching) setPicture(undefined)
@@ -253,13 +259,17 @@ const PicturePreview = ({ picture, setPicture, location }: PicturePreviewProps) 
                 baseURL
             })
 
-            await handleShare(`${baseURL}/${response.data.data._id}`)
 
+            const url = ''
+            await handleShare(`${baseURL}/${response.data.data._id}`)
+            await downloadAndSaveAsset(url)
         } catch (error) {
             console.error("AXIOS ERROR:", error)
         } finally {
             setisFetching(false)
         }
+
+
     }
 
     const handleShare = async (url: string) => {
@@ -278,6 +288,22 @@ const PicturePreview = ({ picture, setPicture, location }: PicturePreviewProps) 
         setAddress({ ...reverseGeoCode[0], formattedAddress: formattedAddress.split(`${reverseGeoCode[0].name}, `)[1] })
         return reverseGeoCode
     }
+
+    const downloadFile = async (url: string) => {
+        const destinationFile = new File(Paths.cache, 'test_image.jpg');
+        if (destinationFile.exists) {
+            return destinationFile;
+        } else {
+            return File.downloadFileAsync(url, destinationFile);
+        }
+    }
+
+    const downloadAndSaveAsset = async (url: string) => {
+        const file = await downloadFile(url);
+        const asset = await Asset.create(file.uri);
+        setAsset(asset);
+    };
+
 
     useEffect(() => {
         if (!picture) return setAddress(undefined)
