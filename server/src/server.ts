@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser"
 import connectDB from "./config/mongoConnect"
 import errorHandler from "./middlewares/errorHandler"
 import responseHandler from "./middlewares/responseHandler"
+import uploadRoutes from "./routes/uploadsRoutes"
 
 await connectDB()
 
@@ -23,6 +24,7 @@ app.get('/', (req, res) => {
   res.send('Hello World!');
 });
 
+app.use(uploadRoutes)
 
 app.use(errorHandler)
 

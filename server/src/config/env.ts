@@ -6,6 +6,7 @@ const EnvSchema = z.object({
     PORT: z.coerce.number().int().min(1000).default(8080),
     MONGO_URI: z.string(),
     CLIENT_URL: z.string(),
+    CLOUDINARY_URL: z.string(),
 })
 
 const parsedData = EnvSchema.safeParse(process.env)
