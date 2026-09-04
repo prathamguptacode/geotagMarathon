@@ -247,14 +247,13 @@ const PicturePreview = ({ picture, setPicture, location }: PicturePreviewProps) 
 
         setisFetching(true)
         try {
-            const response = await axios.post('http://10.81.96.142:8080/', formData, {
-                headers: {
-                    latitude: 18,
-                    longitude: 23
-                }
+            const baseURL = 'http://10.81.96.142:8080'
+            const response = await axios.post<{ data: { _id: string } }>(`/`, formData, {
+                headers: location?.coords,
+                baseURL
             })
 
-            console.info("RESPONSE:", response.data)
+            await handleShare(`${baseURL}/${response.data.data._id}`)
 
         } catch (error) {
             console.error("AXIOS ERROR:", error)
@@ -263,9 +262,8 @@ const PicturePreview = ({ picture, setPicture, location }: PicturePreviewProps) 
         }
     }
 
-    const handleShare = async () => {
+    const handleShare = async (url: string) => {
         try {
-            const url = 'https://youtu.be/VdvMZzSWEX0?si=nq9ID3-gNxIKvlWa'
             await Share.share({ message: url })
         } catch (error) {
             console.error("Sharing error:", error)
@@ -310,7 +308,7 @@ const PicturePreview = ({ picture, setPicture, location }: PicturePreviewProps) 
                 </View>
             </View>
             <View style={styles.previewOptions}>
-                <Pressable onPress={handleShare} style={[styles.previewOption, { backgroundColor: 'white' }]}>
+                <Pressable onPress={handleClose} style={[styles.previewOption, { backgroundColor: 'white' }]}>
                     <MaterialIcons name="camera" size={24} color="black" />
                     <Text style={styles.previewText}>
                         Take Another
