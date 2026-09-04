@@ -4,7 +4,7 @@ import Entypo from '@expo/vector-icons/Entypo';
 
 const TabLayout = () => {
     return (
-        <Tabs screenOptions={{ tabBarActiveTintColor: 'blue', headerShown: false }}>
+        <Tabs backBehavior="order" screenOptions={{ tabBarActiveTintColor: 'blue', headerShown: false }}>
             <Tabs.Screen
                 name="index"
                 options={{
