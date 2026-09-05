@@ -255,7 +255,12 @@ const PicturePreview = ({ picture, setPicture, location }: PicturePreviewProps) 
         try {
             const baseURL = 'http://10.81.96.142:8080'
             const response = await axios.post<{ data: { _id: string } }>(`/`, formData, {
-                headers: location?.coords,
+                headers: {
+                    ...location?.coords,
+                    main: `${address?.city}, ${address?.country}`,
+                    address: address?.formattedAddress,
+                    country: address?.country,
+                },
                 baseURL
             })
 
