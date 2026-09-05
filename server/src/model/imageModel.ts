@@ -15,7 +15,10 @@ const imageSchema = new mongoose.Schema({
       type: [Number],
       required: true
     },
-  }
+  },
+  main: String,
+  address: String,
+  country: String
 }, { timestamps: true })
 
 export default mongoose.model("photosIds", imageSchema)
