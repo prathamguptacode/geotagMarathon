@@ -8,6 +8,9 @@ import { addText } from '@/svg/addText';
 const locationSchema = z.object({
   latitude: z.coerce.number(),
   longitude: z.coerce.number(),
+  main: z.string(),
+  address: z.string(),
+  country: z.string(),
 });
 
 export const uploadController: RequestHandler = async (req, res) => {
@@ -15,14 +18,14 @@ export const uploadController: RequestHandler = async (req, res) => {
   if (!path) {
     return res.fail(404, 'IMAGE NOT FOUND');
   }
-  const validate = locationSchema.safeParse({ latitude: req.headers.latitude, longitude: req.headers.longitude, });
+  const validate = locationSchema.safeParse({ latitude: req.headers.latitude, longitude: req.headers.longitude, main: req.headers.main, country: req.headers.country, address: req.headers.country });
   if (!validate.success) {
     await fs.unlink(path);
     return res.fail(400, 'INVALID INPUT');
   }
-  const main = 'hello world';
-  const country = 'hello';
-  const address = 'hello world 12312 ajknd';
+  const main = validate.data.main
+  const country = validate.data.country
+  const address = validate.data.address
   const latitude = String(validate.data.latitude);
   const longitude = String(validate.data.longitude);
   const date = new Date().toString();
@@ -38,7 +41,7 @@ export const uploadController: RequestHandler = async (req, res) => {
   };
   await fs.unlink(path);
   await fs.unlink(resFile);
-  const dbimg = new imageModel({ publicId: resCloud.public_id, location });
+  const dbimg = new imageModel({ publicId: resCloud.public_id, location, main, address, country });
   const resDb = await dbimg.save();
   res.success(201, { id: resDb._id, url: resCloud.secure_url }, 'UPLOADED');
 };
@@ -49,5 +52,6 @@ export const viewImageController: RequestHandler = async (req, res) => {
   if (resDb == null) {
     return res.fail(404, 'NOT_FOUND');
   }
-  res.success(200, { publicId: resDb.publicId, location: resDb.location });
+  const { location, main, address, country } = resDb
+  res.success(200, { publicId: resDb.publicId, location, main, address, country });
 };
