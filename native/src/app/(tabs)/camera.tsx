@@ -1,4 +1,4 @@
-import { Image, Modal, Pressable, Share, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native'
+import { Alert, Image, Modal, Pressable, Share, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native'
 import { CameraCapturedPicture, CameraType, CameraView, useCameraPermissions } from 'expo-camera'
 import { Dispatch, ReactNode, SetStateAction, useEffect, useRef, useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -6,13 +6,35 @@ import AntDesign from '@expo/vector-icons/AntDesign';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
 import axios from 'axios'
+import * as Location from 'expo-location';
+import { Asset, usePermissions as useMediaPermissions } from 'expo-media-library'
+import { File, Paths } from 'expo-file-system';
 
 const camera = () => {
-    const [camPerm, requestCamPerm] = useCameraPermissions()
+    const [camPermission, requestCameraPermission] = useCameraPermissions()
+    const [mediaPermission, requestMediaPermission] = useMediaPermissions()
+    const [capturing, setCapturing] = useState(false)
+    const [location, setLocation] = useState<Location.LocationObject>()
+
+    const requestLocationPermission = async () => {
+        await Location.requestForegroundPermissionsAsync()
+    }
+
+    const getCurrentLocation = async () => {
+        const location = await Location.getCurrentPositionAsync()
+        setLocation(location)
+        return location
+    }
+
 
     useEffect(() => {
-        requestCamPerm()
+        requestCameraPermission()
+        requestLocationPermission()
+        requestMediaPermission()
     }, [])
+
+
+
 
 
     const cameraRef = useRef<CameraView>(null)
@@ -22,14 +44,23 @@ const camera = () => {
 
     const handleCapturePicture = async () => {
         const camera = cameraRef.current
-        if (!camera) return
+        if (!camera || capturing) return
 
+        setCapturing(true)
 
         try {
-            const picture = await camera.takePictureAsync()
+            const picturePromise = camera.takePictureAsync()
+            const locationPromise = getCurrentLocation()
+            const [picture, location] = await Promise.all([
+                picturePromise,
+                locationPromise
+            ])
             setPicture(picture)
+            console.log(location)
         } catch (error) {
             console.error(error)
+        } finally {
+            setCapturing(false)
         }
 
     }
@@ -38,7 +69,7 @@ const camera = () => {
         setFacing(prev => prev == 'back' ? 'front' : 'back')
     }
 
-    if (!camPerm?.granted) return
+    if (!camPermission?.granted) return
 
     return (
         <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -62,7 +93,7 @@ const camera = () => {
                     </View>
                 </View>
             </CameraView>
-            <PicturePreview picture={picture} setPicture={setPicture} />
+            <PicturePreview location={location} picture={picture} setPicture={setPicture} />
         </SafeAreaView>
     )
 }
@@ -146,7 +177,25 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: '#0BA3FF'
+        padding: 16,
+
+        flexDirection: 'row'
+    },
+    geoTagContent: {
+        flex: 1,
+        backgroundColor: 'hsla(0 0% 0% / 1)',
+        borderRadius: 20,
+        paddingBlock: 16,
+        paddingInline: 24
+    },
+    headingAddress: {
+        fontSize: 24,
+        fontWeight: 600
+    },
+    geoTagText: {
+        fontWeight: 500,
+        fontSize: 16,
+        color: 'white'
     }
 });
 
@@ -179,10 +228,14 @@ const CloseButton = ({ onPress }: CloseButtonProps) => {
 type PicturePreviewProps = {
     picture: CameraCapturedPicture | undefined,
     setPicture: Dispatch<SetStateAction<CameraCapturedPicture | undefined>>,
+    location: Location.LocationObject | undefined
 }
 
-const PicturePreview = ({ picture, setPicture }: PicturePreviewProps) => {
+const PicturePreview = ({ picture, setPicture, location }: PicturePreviewProps) => {
     const [isFetching, setisFetching] = useState(false)
+    const [address, setAddress] = useState<Location.LocationGeocodedAddress>()
+    const [asset, setAsset] = useState<Asset | null>(null)
+
     const handleClose = () => {
         if (!isFetching) setPicture(undefined)
     }
@@ -200,32 +253,69 @@ const PicturePreview = ({ picture, setPicture }: PicturePreviewProps) => {
 
         setisFetching(true)
         try {
-            const response = await axios.post('http://10.81.96.142:8080/', formData, {
+            const baseURL = 'http://10.81.96.142:8080'
+            const response = await axios.post<{ data: { _id: string } }>(`/`, formData, {
                 headers: {
-                    latitude: 18,
-                    longitude: 23
-                }
+                    ...location?.coords,
+                    main: `${address?.city}, ${address?.country}`,
+                    address: address?.formattedAddress,
+                    country: address?.country,
+                },
+                baseURL
             })
 
-            console.info("RESPONSE:", response.data)
 
+            const url = ''
+            await handleShare(`${baseURL}/${response.data.data._id}`)
+            await downloadAndSaveAsset(url)
         } catch (error) {
             console.error("AXIOS ERROR:", error)
         } finally {
             setisFetching(false)
         }
+
+
     }
 
-    const handleShare = async () => {
+    const handleShare = async (url: string) => {
         try {
-            const url = 'https://youtu.be/VdvMZzSWEX0?si=nq9ID3-gNxIKvlWa'
             await Share.share({ message: url })
         } catch (error) {
             console.error("Sharing error:", error)
         }
-
     }
 
+    const getReverseGeocode = async () => {
+        if (!location) return
+        const reverseGeoCode = await Location.reverseGeocodeAsync(location.coords)
+        console.log(reverseGeoCode)
+        const formattedAddress = reverseGeoCode[0].formattedAddress ?? ''
+        setAddress({ ...reverseGeoCode[0], formattedAddress: formattedAddress.split(`${reverseGeoCode[0].name}, `)[1] })
+        return reverseGeoCode
+    }
+
+    const downloadFile = async (url: string) => {
+        const destinationFile = new File(Paths.cache, 'test_image.jpg');
+        if (destinationFile.exists) {
+            return destinationFile;
+        } else {
+            return File.downloadFileAsync(url, destinationFile);
+        }
+    }
+
+    const downloadAndSaveAsset = async (url: string) => {
+        const file = await downloadFile(url);
+        const asset = await Asset.create(file.uri);
+        setAsset(asset);
+    };
+
+
+    useEffect(() => {
+        if (!picture) return setAddress(undefined)
+        getReverseGeocode()
+    }, [picture])
+
+    const temp = 'https://wallpapercave.com/wp/wp5017784.jpg'
     return (
         <Modal style={styles.picturePreview} onRequestClose={handleClose} visible={!!picture}>
             <View style={styles.previewOptions}>
@@ -233,13 +323,23 @@ const PicturePreview = ({ picture, setPicture }: PicturePreviewProps) => {
             </View>
             <View style={styles.previewImageWrapper}>
                 <Image source={{ uri: picture?.uri }} style={{ width: '100%', height: 0, flex: 1 }} />
-                {/* <View style={styles.geoTagOverlay}>
-                    <Text style={{ color: 'red' }}> THIS IS GREAT SHIT IF THIS IS POSSIBLE</Text>
-                    <MaterialIcons name="location-pin" size={24} color="white" />
-                </View> */}
+                <View style={styles.geoTagOverlay}>
+                    <View style={styles.geoTagContent}>
+                        <Text style={[styles.headingAddress, styles.geoTagText]}>
+                            {`${address?.city}, ${address?.country}`}
+                        </Text>
+                        <Text style={styles.geoTagText} >
+                            {address?.formattedAddress}
+                        </Text>
+                        <Text style={styles.geoTagText}>
+                            {`Latitude: ${location?.coords.latitude} Longitude: ${location?.coords.longitude}`}
+                        </Text>
+                        <Text style={styles.geoTagText}>{new Date(location?.timestamp ?? 0).toLocaleString('en-gb', { dateStyle: 'full' })}</Text>
+                    </View>
+                </View>
             </View>
             <View style={styles.previewOptions}>
-                <Pressable onPress={handleShare} style={[styles.previewOption, { backgroundColor: 'white' }]}>
+                <Pressable onPress={handleClose} style={[styles.previewOption, { backgroundColor: 'white' }]}>
                     <MaterialIcons name="camera" size={24} color="black" />
                     <Text style={styles.previewText}>
                         Take Another
@@ -256,4 +356,3 @@ const PicturePreview = ({ picture, setPicture }: PicturePreviewProps) => {
         </Modal >
     )
 }
-
